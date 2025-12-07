@@ -1,0 +1,663 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Cifrado matricial — Laboratorio</title>
+
+<style>
+  :root{
+    --bg:#071027;
+    --card:#0b1220;
+    --panel:#0d1321;
+    --accent:#2b6ef6;
+    --accent-2:#6b21a8;
+    --muted:#9aa4b2;
+    --glass: rgba(255,255,255,0.03);
+    --success:#16a34a;
+    --danger:#ef4444;
+    --radius:12px;
+    --mono: "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+
+  *{box-sizing:border-box}
+  body{
+    margin:0;
+    font-family:var(--mono);
+    background:linear-gradient(180deg,var(--bg),#050612);
+    color:#e6eef8;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  .container{
+    max-width:1100px;
+    margin:36px auto;
+    padding:22px;
+  }
+
+  .header{
+    display:flex;
+    align-items:center;
+    gap:16px;
+    margin-bottom:18px;
+  }
+  .logo{
+    width:56px;height:56px;border-radius:12px;background:linear-gradient(135deg,var(--accent),var(--accent-2));
+    display:flex;align-items:center;justify-content:center;font-weight:700;color:white;box-shadow:0 8px 30px rgba(43,110,246,0.14)
+  }
+  h1{margin:0;font-size:20px}
+  p.lead{margin:4px 0 0;color:var(--muted);font-size:13px}
+
+  .panel{
+    background:linear-gradient(180deg,var(--panel), rgba(255,255,255,0.01));
+    border-radius:16px;padding:18px;border:1px solid rgba(255,255,255,0.03);
+    box-shadow:0 12px 40px rgba(2,6,23,0.6);
+  }
+
+  .topbar{
+    display:flex;gap:12px;align-items:center;margin-bottom:16px;
+  }
+  .field{
+    display:flex;flex-direction:column;
+  }
+  label.small{font-size:13px;color:var(--muted);margin-bottom:6px}
+  select, button, input[type=number]{
+    padding:10px 12px;border-radius:10px;border:1px solid rgba(255,255,255,0.04);
+    background:transparent;color:#eaf0ff;font-weight:600;
+  }
+  select{min-width:110px}
+  .btn-primary{background:linear-gradient(90deg,var(--accent),var(--accent-2));border:0;color:white}
+  .btn-ghost{background:transparent;border:1px solid rgba(255,255,255,0.04);color:var(--muted)}
+  .btn-dark{background:#0a0f18;color:#dfe9ff;border:1px solid rgba(255,255,255,0.02)}
+
+  .grid{
+    display:grid;
+    grid-template-columns: 1fr 420px;
+    gap:18px;
+    align-items:start;
+  }
+
+  /* left card (matrix + controls) */
+  .card{
+    background:var(--card);
+    border-radius:12px;padding:16px;border:1px solid rgba(255,255,255,0.02)
+  }
+
+  .matrix-area{
+    display:flex;
+    gap:18px;
+    align-items:flex-start;
+    margin-top:8px;
+  }
+
+  .matrix{
+    background:rgba(255,255,255,0.01);
+    padding:12px;border-radius:10px;min-width:160px;
+    display:inline-grid;gap:8px;
+  }
+
+  .matrix input{
+    width:64px;padding:12px;border-radius:8px;background:transparent;border:1px solid rgba(255,255,255,0.03);
+    color:#fff;font-size:18px;text-align:center;font-weight:700;
+  }
+  .matrix.small input{ width:72px }
+
+  .actions{
+    display:flex;flex-direction:column;gap:8px;
+    min-width:220px;
+  }
+  .actions button{ padding:10px 12px;border-radius:10px;text-align:center; }
+
+  .statusbar{
+    margin-top:12px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;
+  }
+
+  .pill{
+    background:var(--glass);padding:8px 12px;border-radius:999px;color:var(--muted);font-weight:600;font-size:13px;
+  }
+
+  .pill.ok{ color:var(--success); background: rgba(22,163,74,0.06) }
+  .pill.bad{ color:var(--danger); background: rgba(239,68,68,0.06) }
+
+  /* right column: message and results */
+  .side{
+    display:flex;flex-direction:column;gap:12px;
+  }
+
+  textarea#message{
+    width:100%;min-height:140px;border-radius:10px;padding:12px;background:rgba(255,255,255,0.01);
+    border:1px solid rgba(255,255,255,0.02);color:#eef2ff;resize:vertical;font-size:15px;
+  }
+
+  .result{
+    background:linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.005));
+    padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,0.02);font-family:monospace;
+    min-height:56px;display:flex;align-items:center;justify-content:space-between;
+  }
+  .result .text{ word-break:break-all; color:#e8f0ff }
+  .result .controls{ display:flex; gap:8px }
+
+  .mini{
+    display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;
+  }
+
+  .steps{
+    margin-top:12px;background:rgba(255,255,255,0.01);padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,0.02);
+    color:var(--muted);font-size:13px;max-height:200px;overflow:auto;
+  }
+
+  .footer-note{ margin-top:12px;color:var(--muted);font-size:13px }
+
+  @media (max-width:980px){
+    .grid{ grid-template-columns: 1fr; }
+    .matrix input{ width:54px }
+  }
+</style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="logo">CM</div>
+      <div>
+        <h1>Cifrado matricial</h1>
+        <p class="lead">Interfaz interactiva, profesional y técnica. Valida determinante, obtiene inversa modular (mod 26) y opera con bloques 2×2 o 3×3.</p>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="topbar">
+        <div class="field">
+          <label class="small">Tamaño:</label>
+          <select id="sizeSelect">
+            <option value="2">2 × 2</option>
+            <option value="3">3 × 3</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label class="small">Formato:</label>
+          <div style="display:flex;gap:8px;align-items:center">
+            <div class="pill">solo enteros</div>
+            <div class="pill">operación en módulo 26</div>
+          </div>
+        </div>
+
+        <div style="margin-left:auto;display:flex;gap:8px">
+          <button class="btn-primary" id="btnCalc">Calcular</button>
+          <button class="btn-ghost" id="btnVerify">Verificar invertibilidad</button>
+          <button class="btn-dark" id="btnDownload">Descargar HTML</button>
+        </div>
+      </div>
+
+      <div class="grid">
+        <!-- LEFT: Matrix & controls -->
+        <div>
+          <div class="card">
+            <h3>Matriz clave (edítala directo)</h3>
+            <div class="matrix-area">
+              <div id="matrixContainer" class="matrix small"></div>
+
+              <div class="actions">
+                <button id="btnLoadId">Cargar identidad</button>
+                <button id="btnLoadExample">Cargar matriz ejemplo</button>
+                <button id="btnGen">Generar aleatoria (invertible)</button>
+                <button id="btnNorm">Normalizar (mod 26)</button>
+              </div>
+            </div>
+
+            <div class="statusbar">
+              <div>Estado clave: <span id="statePill" class="pill">Pendiente</span></div>
+              <div>Determinante: <span id="detSigned" class="pill">—</span></div>
+              <div>Det mod26: <span id="detMod" class="pill">—</span></div>
+            </div>
+
+            <div style="margin-top:12px" class="mini">
+              <button id="btnShowInv" class="btn-ghost">Mostrar inversa</button>
+              <button id="btnShowAdj" class="btn-ghost">Mostrar adjunta</button>
+              <button id="btnShowSteps" class="btn-ghost">Ver pasos</button>
+              <button id="btnClear" class="btn-ghost">Reset</button>
+            </div>
+          </div>
+
+          <div class="card" style="margin-top:12px">
+            <h3>Información matemática</h3>
+            <p class="footer-note">La matriz debe ser invertible en ℤ₂₆ (gcd(det,26)=1). Si el determinante no tiene inverso modular la matriz no sirve para cifrado/descifrado.</p>
+            <div id="mathSteps" class="steps">Aquí se mostrarán los pasos del cálculo (determinante, adjunta, inversa, etc.).</div>
+          </div>
+        </div>
+
+        <!-- RIGHT: Message & results -->
+        <div class="side">
+          <div class="card">
+            <label class="small">Mensaje (puedes incluir espacios/puntuación — serán ignorados)</label>
+            <textarea id="message" placeholder="Ingresa mensaje a cifrar...">HOLA MUNDO</textarea>
+
+            <div style="display:flex;gap:8px;margin-top:10px">
+              <button id="btnEncrypt" class="btn-primary">Cifrar</button>
+              <button id="btnDecrypt" class="btn-ghost">Descifrar</button>
+              <button id="btnCopy" class="btn-ghost">Copiar</button>
+            </div>
+
+            <div style="margin-top:12px">
+              <label class="small">Resultado</label>
+              <div class="result" id="resultBox">
+                <div class="text" id="resText">—</div>
+                <div class="controls" style="margin-left:12px"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card" style="margin-top:12px">
+            <h3>Acciones extra</h3>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <button id="btnDownloadHtml" class="btn-dark">Descargar HTML</button>
+              <button id="btnExportZip" class="btn-dark">Exportar (HTML+README)</button>
+            </div>
+
+            <p class="footer-note" style="margin-top:10px">Panel académico para demostración y práctica — diseñado para anexo de tesis.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+<script>
+/* =========================
+   UTILIDADES MATEMÁTICAS
+   ========================= */
+const MOD = 26;
+const ALPH = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
+function mod(n,m=MOD){ return ((n % m) + m) % m; }
+function gcd(a,b){ a=Math.abs(a); b=Math.abs(b); while(b){ const t=a%b; a=b; b=t;} return a; }
+function invMod(a,m=MOD){
+  a = mod(a,m);
+  for(let x=1;x<m;x++) if((a*x)%m===1) return x;
+  return null;
+}
+
+/* =========================
+   DOM Y ESTADO
+   ========================= */
+const sizeSelect = document.getElementById('sizeSelect');
+const matrixContainer = document.getElementById('matrixContainer');
+const statePill = document.getElementById('statePill');
+const detSigned = document.getElementById('detSigned');
+const detMod = document.getElementById('detMod');
+const mathSteps = document.getElementById('mathSteps');
+const resText = document.getElementById('resText');
+const message = document.getElementById('message');
+
+let N = parseInt(sizeSelect.value);
+
+/* Crear la grilla de inputs según tamaño */
+function buildMatrixInputs(n){
+  matrixContainer.innerHTML = '';
+  matrixContainer.classList.toggle('small', n===2);
+  matrixContainer.style.gridTemplateColumns = `repeat(${n},1fr)`;
+  for(let i=0;i<n*n;i++){
+    const inp = document.createElement('input');
+    inp.type='number';
+    inp.value = 0;
+    inp.className = 'matrixInput';
+    matrixContainer.appendChild(inp);
+  }
+}
+
+/* Leer matriz desde inputs */
+function readMatrix(){
+  const inputs = matrixContainer.querySelectorAll('.matrixInput');
+  const n = Math.sqrt(inputs.length);
+  let M = [];
+  let k=0;
+  for(let i=0;i<n;i++){
+    M[i]=[];
+    for(let j=0;j<n;j++){
+      M[i][j] = parseInt(inputs[k].value) || 0;
+      k++;
+    }
+  }
+  return M;
+}
+
+/* Escribir matriz en inputs */
+function writeMatrix(M){
+  const inputs = matrixContainer.querySelectorAll('.matrixInput');
+  let k=0;
+  for(let i=0;i<M.length;i++){
+    for(let j=0;j<M.length;j++){
+      inputs[k++].value = M[i][j];
+    }
+  }
+}
+
+/* Normalizar matriz mod 26 (para mostrar) */
+function normalizeMatrix(){
+  const M = readMatrix();
+  for(let i=0;i<M.length;i++) for(let j=0;j<M.length;j++) M[i][j] = mod(M[i][j]);
+  writeMatrix(M);
+  updateDetAndState();
+}
+
+/* =========================
+   DETERMINANTE 2x2 y 3x3
+   ========================= */
+function det2(M){
+  return M[0][0]*M[1][1] - M[0][1]*M[1][0];
+}
+function det3(M){
+  // regla de Sarrus / Laplace
+  return (
+    M[0][0]*(M[1][1]*M[2][2]-M[1][2]*M[2][1]) -
+    M[0][1]*(M[1][0]*M[2][2]-M[1][2]*M[2][0]) +
+    M[0][2]*(M[1][0]*M[2][1]-M[1][1]*M[2][0])
+  );
+}
+
+/* Adjunta e inversa modular */
+function adjugate2(M){
+  return [
+    [ M[1][1], -M[0][1] ],
+    [ -M[1][0], M[0][0] ]
+  ];
+}
+function adjugate3(m){
+  // cofactores transpuestos (adjunta)
+  const A = [];
+  for(let i=0;i<3;i++){
+    A[i]=[];
+    for(let j=0;j<3;j++){
+      // minor
+      const minor = [];
+      for(let ii=0;ii<3;ii++){
+        if(ii===i) continue;
+        const row=[];
+        for(let jj=0;jj<3;jj++){
+          if(jj===j) continue;
+          row.push(m[ii][jj]);
+        }
+        minor.push(row);
+      }
+      const cof = minor[0][0]*minor[1][1] - minor[0][1]*minor[1][0];
+      A[i][j] = (( ( ((i+j)%2===1) ? -cof : cof) )); // apply sign
+    }
+  }
+  // transpose to get adjugate
+  const adj = [];
+  for(let i=0;i<3;i++){
+    adj[i]=[];
+    for(let j=0;j<3;j++) adj[i][j]=adj = undefined;
+  }
+  // simpler: compute cofactor matrix then transpose
+  const cof = [];
+  for(let i=0;i<3;i++){
+    cof[i]=[];
+    for(let j=0;j<3;j++){
+      const minor = [];
+      for(let ii=0;ii<3;ii++){
+        if(ii===i) continue;
+        const row=[];
+        for(let jj=0;jj<3;jj++){
+          if(jj===j) continue;
+          row.push(m[ii][jj]);
+        }
+        minor.push(row);
+      }
+      const val = minor[0][0]*minor[1][1] - minor[0][1]*minor[1][0];
+      cof[i][j] = (( ( (i+j)%2===1) ? -val : val ));
+    }
+  }
+  // transpose cof to adj
+  const adjt = [];
+  for(let i=0;i<3;i++){
+    adjt[i]=[];
+    for(let j=0;j<3;j++) adjt[i][j]=cof[j][i];
+  }
+  return adjt;
+}
+
+/* calcular inversa modular */
+function inverseMatrixMod(M){
+  const n = M.length;
+  if(n===2){
+    const det = det2(M);
+    const detm = mod(det);
+    const invDet = invMod(detm);
+    if(invDet===null) return null;
+    const adj = adjugate2(M);
+    const inv = [
+      [ mod(adj[0][0]*invDet), mod(adj[0][1]*invDet) ],
+      [ mod(adj[1][0]*invDet), mod(adj[1][1]*invDet) ]
+    ];
+    return {inv,det,detm,invDet,adj};
+  } else if(n===3){
+    const det = det3(M);
+    const detm = mod(det);
+    const invDet = invMod(detm);
+    if(invDet===null) return null;
+    const adj = adjugate3(M); // 3x3 adjunta
+    // multiply adj by invDet mod 26
+    const inv = [];
+    for(let i=0;i<3;i++){
+      inv[i]=[];
+      for(let j=0;j<3;j++){
+        inv[i][j] = mod(adj[i][j]*invDet);
+      }
+    }
+    return {inv,det,detm,invDet,adj};
+  }
+  return null;
+}
+
+/* =========================
+   UI: actualizar determinante y estado
+   ========================= */
+function updateDetAndState(){
+  const M = readMatrix();
+  const n = M.length;
+  let det;
+  if(n===2) det = det2(M);
+  else det = det3(M);
+  const detm = mod(det);
+  detSigned.textContent = det;
+  detMod.textContent = detm;
+  const inv = invMod(detm);
+  if(inv === null || gcd(det,26)!==1){
+    statePill.textContent = 'No invertible';
+    statePill.className = 'pill bad';
+  } else {
+    statePill.textContent = 'Invertible';
+    statePill.className = 'pill ok';
+  }
+}
+
+/* show adjunta and inverse in mathSteps */
+function showAdjAndInv(){
+  const M = readMatrix();
+  const res = inverseMatrixMod(M);
+  if(!res){
+    mathSteps.textContent = 'No es posible calcular la inversa modular: determinante no invertible en Z_26.';
+    return;
+  }
+  let html = '';
+  html += `<div><b>Determinante (entero):</b> ${res.det}</div>`;
+  html += `<div><b>Det (mod 26):</b> ${res.detm}</div>`;
+  html += `<div><b>Inverso modular de det (mod 26):</b> ${res.invDet}</div>`;
+  html += `<div style="margin-top:8px"><b>Adjunta (o cofactores transpuestos):</b><pre>${formatMatrix(res.adj)}</pre></div>`;
+  html += `<div><b>Matriz inversa (mod 26):</b><pre>${formatMatrix(res.inv)}</pre></div>`;
+  mathSteps.innerHTML = html;
+}
+
+function formatMatrix(M){
+  return M.map(r => '[ '+ r.map(x=>String(mod(x)).padStart(2,' ')).join(' , ') + ' ]').join('\n');
+}
+
+/* =========================
+   CIFRADO y DESCIFRADO
+   ========================= */
+function prepareText(t,n){
+  t = t.toUpperCase().replace(/[^A-Z]/g,'');
+  while(t.length % n !== 0) t += 'X';
+  return t;
+}
+
+function multiplyMatVec(M, v){
+  const n = M.length;
+  const out = new Array(n).fill(0);
+  for(let i=0;i<n;i++){
+    let s=0;
+    for(let j=0;j<n;j++) s += M[i][j]*v[j];
+    out[i] = mod(s);
+  }
+  return out;
+}
+
+function encrypt(){
+  updateDetAndState();
+  const M = readMatrix();
+  const n = M.length;
+  const prep = prepareText(message.value, n);
+  const resMat = inverseMatrixMod(M);
+  // must be invertible
+  if(resMat===null){
+    alert('La matriz no es invertible en Z_26. No puede cifrarse con esta clave.');
+    return;
+  }
+  let out = '';
+  for(let i=0;i<prep.length;i+=n){
+    const v=[];
+    for(let j=0;j<n;j++) v.push(ALPH.indexOf(prep[i+j]));
+    const c = multiplyMatVec(M,v);
+    for(let x=0;x<c.length;x++) out += ALPH[c[x]];
+  }
+  resText.textContent = out;
+  mathSteps.textContent = `Texto limpio: ${prepareText(message.value,n)}\nBloque usado: ${n}x${n}`;
+}
+
+function decrypt(){
+  updateDetAndState();
+  const M = readMatrix();
+  const n = M.length;
+  const text = message.value.toUpperCase().replace(/[^A-Z]/g,'');
+  if(text.length % n !== 0){
+    alert('El texto cifrado debe tener longitud múltiplo del tamaño de bloque. Revise o cifre primero.');
+    return;
+  }
+  const invObj = inverseMatrixMod(M);
+  if(invObj===null){
+    alert('No es posible obtener la inversa modular (clave inválida).');
+    return;
+  }
+  const Minv = invObj.inv;
+  let out = '';
+  for(let i=0;i<text.length;i+=n){
+    const v = [];
+    for(let j=0;j<n;j++) v.push(ALPH.indexOf(text[i+j]));
+    const m = multiplyMatVec(Minv, v);
+    for(let x=0;x<m.length;x++) out += ALPH[m[x]];
+  }
+  resText.textContent = out;
+  mathSteps.textContent = `Texto a descifrar: ${text}\nSe usó la inversa modular calculada.`;
+}
+
+/* =========================
+   BOTONES Y EVENTOS
+   ========================= */
+sizeSelect.addEventListener('change', ()=>{
+  N = parseInt(sizeSelect.value);
+  buildMatrixInputs(N);
+  // set a common example
+  if(N===2) writeMatrix([[7,8],[11,11]]);
+  else writeMatrix([[2,3,5],[7,11,3],[6,5,9]]);
+  updateDetAndState();
+});
+
+document.getElementById('btnCalc').addEventListener('click', updateDetAndState);
+document.getElementById('btnVerify').addEventListener('click', ()=>{
+  updateDetAndState();
+  showAdjAndInv();
+});
+
+document.getElementById('btnLoadId').addEventListener('click', ()=>{
+  const n = N;
+  const I = [];
+  for(let i=0;i<n;i++){
+    I[i]=[];
+    for(let j=0;j<n;j++) I[i][j] = (i===j) ? 1 : 0;
+  }
+  writeMatrix(I);
+  updateDetAndState();
+});
+
+document.getElementById('btnLoadExample').addEventListener('click', ()=>{
+  if(N===2) writeMatrix([[7,8],[11,11]]);
+  else writeMatrix([[7,8,3],[11,11,5],[2,9,4]]);
+  updateDetAndState();
+});
+
+document.getElementById('btnGen').addEventListener('click', ()=>{
+  // generate until invertible
+  let tries=0;
+  do{
+    const M = [];
+    for(let i=0;i<N;i++){
+      M[i]=[];
+      for(let j=0;j<N;j++) M[i][j] = Math.floor(Math.random()*20)-10; // range -10..9
+    }
+    writeMatrix(M);
+    tries++;
+    updateDetAndState();
+  } while( ( (function(){ const m = readMatrix(); const det = (m.length==2 ? det2(m):det3(m)); return !(gcd(det,26)===1); })() ) && tries<500);
+  showAdjAndInv();
+});
+
+document.getElementById('btnNorm').addEventListener('click', normalizeMatrix);
+document.getElementById('btnShowInv').addEventListener('click', showAdjAndInv);
+document.getElementById('btnShowAdj').addEventListener('click', showAdjAndInv);
+document.getElementById('btnShowSteps').addEventListener('click', ()=>{
+  mathSteps.scrollTop = 0;
+});
+document.getElementById('btnClear').addEventListener('click', ()=>{
+  buildMatrixInputs(N);
+  for(const inp of document.querySelectorAll('.matrixInput')) inp.value = 0;
+  statePill.textContent = 'Pendiente'; statePill.className='pill';
+  detSigned.textContent = '—'; detMod.textContent = '—';
+  mathSteps.textContent = 'Aquí se mostrarán los pasos del cálculo (determinante, adjunta, inversa, etc.).';
+  resText.textContent = '—';
+});
+
+document.getElementById('btnEncrypt').addEventListener('click', encrypt);
+document.getElementById('btnDecrypt').addEventListener('click', decrypt);
+document.getElementById('btnCopy').addEventListener('click', ()=>{
+  navigator.clipboard?.writeText(resText.textContent || '').then(()=> alert('Resultado copiado al portapapeles'));
+});
+
+function downloadHTML(){
+  // create a blob of the current outerHTML and download it
+  const html = '<!doctype html>\\n' + document.documentElement.outerHTML;
+  const blob = new Blob([html], {type: 'text/html'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'cifrado_matricial_export.html';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+document.getElementById('btnDownload').addEventListener('click', downloadHTML);
+document.getElementById('btnDownloadHtml').addEventListener('click', downloadHTML);
+
+document.getElementById('btnExportZip').addEventListener('click', ()=>{
+  alert('Exportar ZIP no está disponible en este demo. Puedo generar el ZIP y prepararlo para descarga si lo quieres (te lo dejo listo).');
+});
+
+/* inicializar */
+buildMatrixInputs(N);
+if(N===2) writeMatrix([[7,8],[11,11]]); else writeMatrix([[2,3,5],[7,11,3],[6,5,9]]);
+updateDetAndState();
+
+</script>
+</body>
+</html>
